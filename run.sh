@@ -4,8 +4,8 @@ import sys
 import math
 
 def calculate_reimbursement(trip_duration_days, miles_traveled, total_receipts_amount):
-    # Starting from Set 17 code.
-    # Micro-Adjustment 1: Add a global fixed bonus of $1.65.
+    # Reverted to Set 20/23 code (avg error $219.84, 1 exact, 3 close).
+    # This was the best performing version.
 
     per_diem_total_base = 0.0
     final_mileage_reimbursement = 0.0
@@ -26,7 +26,7 @@ def calculate_reimbursement(trip_duration_days, miles_traveled, total_receipts_a
     if trip_duration_days == 5:
         per_diem_to_use_in_final_calc += 50.0
 
-    # --- Standard Mileage base calculation ---
+    # --- Standard Mileage base calculation (2-tier) ---
     if miles_traveled > 0:
         tier1_rate = 0.58
         tier1_miles_cap = 100.0
@@ -63,8 +63,9 @@ def calculate_reimbursement(trip_duration_days, miles_traveled, total_receipts_a
     if effective_receipts_for_calc < (trip_duration_days * low_receipt_min_daily_avg):
         final_receipt_reimbursement = 0.0
     else:
+        # Adjusted Receipt Tiers (from Set 20)
         receipt_cap1 = 400.0; receipt_rate1 = 0.80
-        receipt_cap2 = 800.0; receipt_rate2 = 0.50
+        receipt_cap2 = 800.0; receipt_rate2 = 0.65
         receipt_rate3 = 0.30
 
         if effective_receipts_for_calc <= receipt_cap1:
@@ -79,13 +80,18 @@ def calculate_reimbursement(trip_duration_days, miles_traveled, total_receipts_a
 
     reimbursement = per_diem_to_use_in_final_calc + final_mileage_reimbursement + final_receipt_reimbursement
 
-    # --- Efficiency Adjustments (from Set 17) ---
+    # --- Efficiency Adjustments (from Set 17, part of Set 20 logic) ---
     if trip_duration_days > 0:
         miles_per_day = miles_traveled / trip_duration_days
         if 160 <= miles_per_day <= 240: # Bonus zone
             reimbursement *= 1.05
 
-    # --- Micro-Adjustment 1: Global Fixed Bonus ---
+    # --- Lisa's Low Receipt Penalty (from Set 20/23) ---
+    # Applied if receipts are small but NON-ZERO on multi-day trips
+    if trip_duration_days > 1 and 0 < total_receipts_amount < 50.0:
+        reimbursement -= 25.0
+
+    # --- Global Fixed Bonus (from Set 20) ---
     reimbursement += 1.65
 
     return round(reimbursement, 2)
