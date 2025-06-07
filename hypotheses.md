@@ -5,7 +5,7 @@ Based on the analysis of `public_cases.json` and `INTERVIEWS.md`, the following 
 ## 1. Per Diem Rates
 
 *   **H1.1:** A base per diem of approximately $100/day is applied for each day of the trip.
-*   **H1.2:** Trips of exactly 5 days receive a significant bonus, with reimbursements typically 40-50% higher than expected from base calculations.
+*   **H1.2:** Trips of exactly 5 days receive a significant bonus of 15%.
 *   **H1.3:** (From interviews, not directly testable with `public_cases.json` alone) Employee tenure or history might influence per diem calculations (e.g., new employees getting lower rates).
 *   **H1.4:** Optimal daily spending caps exist and vary by trip duration:
     - 1-3 day trips: ~$75/day
@@ -47,6 +47,11 @@ Based on the analysis of `public_cases.json` and `INTERVIEWS.md`, the following 
     - <100 miles/day: -15% penalty
     - >300 miles/day: -10% penalty
 *   **H4.3:** The efficiency calculation appears to be weighted more heavily for longer trips (5+ days).
+*   **H4.4:** The positive efficiency bonus (e.g., 1.20x or 1.10x) is nullified (set to 1.0) if any of the following conditions are met:
+        a. Average daily receipts (`total_receipts_amount / trip_duration_days`) exceed $400.
+        b. The trip duration is 7 days or longer AND the `total_receipts_amount` exceeds $900.
+        c. The trip duration is 5 days AND the `total_receipts_amount` exceeds $800.
+*   **H4.5:** Special handling for extreme single-day trips: if `trip_duration_days == 1` and `miles_traveled > 1000`, the `efficiency_multiplier` is set to 0.85.*
 
 ## 5. Special Conditions & Other Factors
 

@@ -25,7 +25,7 @@ def calculate_reimbursement(trip_duration_days, miles_traveled, total_receipts_a
 
     # 5-day trip bonus (H1.2)
     if trip_duration_days == 5:
-        per_diem_total *= 1.25  # 25% bonus for 5-day trips
+        per_diem_total *= 1.15  # 15% bonus for 5-day trips
 
     # Minimum per diem guarantee for short trips (H1.5)
     if trip_duration_days <= 2 and miles_traveled < 50:
@@ -67,8 +67,6 @@ def calculate_reimbursement(trip_duration_days, miles_traveled, total_receipts_a
             else:
                 receipt_reimbursement = 780 + ((total_receipts_amount - 1000) * 0.60)
 
-        receipt_reimbursement = min(receipt_reimbursement, total_receipts_amount)
-
         # Low receipt penalty (H3.2)
         if total_receipts_amount < 20:
             receipt_reimbursement *= 0.85
@@ -88,7 +86,7 @@ def calculate_reimbursement(trip_duration_days, miles_traveled, total_receipts_a
 
     # Special handling for extreme single-day trips
     if trip_duration_days == 1 and miles_traveled > 1000:
-        efficiency_multiplier = 0.7
+        efficiency_multiplier = 0.85
     else:
         if 180 <= miles_per_day <= 220:
             efficiency_multiplier = 1.20
@@ -104,6 +102,24 @@ def calculate_reimbursement(trip_duration_days, miles_traveled, total_receipts_a
     # Weight efficiency more heavily for longer trips (H4.3)
     if trip_duration_days >= 5:
         efficiency_multiplier = 1.0 + ((efficiency_multiplier - 1.0) * 1.2)
+
+    # H4.4 Start: Nullify positive efficiency bonus under certain conditions
+    # This logic is now placed *before* applying efficiency_multiplier to base_reimbursement sum
+    original_efficiency_multiplier_for_H4_4_check = efficiency_multiplier # Store before potential modification
+    
+    nullify_bonus_now = False
+    if trip_duration_days > 0:
+        if (total_receipts_amount / trip_duration_days) > 400: # Reverted from 350
+            nullify_bonus_now = True
+        if trip_duration_days >= 7 and total_receipts_amount > 900: # Condition b
+            nullify_bonus_now = True
+        if trip_duration_days == 5 and total_receipts_amount > 800: # New condition c
+            nullify_bonus_now = True
+    
+    if nullify_bonus_now:
+        if original_efficiency_multiplier_for_H4_4_check > 1.0: # Only nullify if it was a bonus
+            efficiency_multiplier = 1.0
+    # H4.4 End
 
     # --- Special Conditions (H5.1-H5.7, H6.1-H6.5) ---
     # Calculate base reimbursement
