@@ -41,26 +41,43 @@ fi
 # Make run.sh executable
 chmod +x run.sh
 
-# Check if public cases exist
-if [ ! -f "public_cases.json" ]; then
-    echo "❌ Error: public_cases.json not found!"
-    echo "Please ensure the public cases file is in the current directory."
+# Check if private cases exist
+if [ ! -f "private_cases.json" ]; then
+    echo "❌ Error: private_cases.json not found!"
+    echo "Please ensure the private cases file is in the current directory."
+    exit 1
+fi
+
+# Check if private results exist
+if [ ! -f "private_results.txt" ]; then
+    echo "❌ Error: private_results.txt not found!"
+    echo "Please ensure the private results file is in the current directory."
     exit 1
 fi
 
 echo "📊 Running evaluation against 1,000 test cases..."
 echo
 
-# Extract all test data upfront in a single jq call for better performance
-echo "Extracting test data..."
-test_data=$(jq -r '.[] | "\(.input.trip_duration_days):\(.input.miles_traveled):\(.input.total_receipts_amount):\(.expected_output)"' public_cases.json)
+# Extract all input data upfront in a single jq call for better performance
+echo "Extracting test data from private_cases.json..."
+input_data=$(jq -r '.[] | "\(.trip_duration_days):\(.miles_traveled):\(.total_receipts_amount)"' private_cases.json)
 
-# Convert to arrays for faster access (compatible with bash 3.2+)
-test_cases=()
+# Convert inputs to array
+test_inputs=()
 while IFS= read -r line; do
-    test_cases+=("$line")
-done <<< "$test_data"
-num_cases=${#test_cases[@]}
+    test_inputs+=("$line")
+done <<< "$input_data"
+
+# Read expected results from private_results.txt into an array
+echo "Reading expected results from private_results.txt..."
+mapfile -t expected_results < private_results.txt
+
+# Check if number of inputs and results match
+if [ ${#test_inputs[@]} -ne ${#expected_results[@]} ]; then
+    echo "❌ Error: Number of test cases in private_cases.json and private_results.txt do not match!"
+    exit 1
+fi
+num_cases=${#test_inputs[@]}
 
 # Initialize counters and arrays
 successful_runs=0
@@ -78,8 +95,15 @@ for ((i=0; i<num_cases; i++)); do
         echo "Progress: $i/$num_cases cases processed..." >&2
     fi
     
-    # Extract test case data from pre-loaded array
-    IFS=':' read -r trip_duration miles_traveled receipts_amount expected <<< "${test_cases[i]}"
+    # Extract test case data from pre-loaded input array
+    IFS=':' read -r trip_duration_raw miles_traveled_raw receipts_amount_raw <<< "${test_inputs[i]}"
+    # Remove potential carriage returns
+    trip_duration="${trip_duration_raw//[$'\r']}"
+    miles_traveled="${miles_traveled_raw//[$'\r']}"
+    receipts_amount="${receipts_amount_raw//[$'\r']}"
+
+    # Get the corresponding expected output and remove potential carriage returns
+    expected="${expected_results[i]//[$'\r']}"
     
     # Run the user's implementation
     if script_output=$(./run.sh "$trip_duration" "$miles_traveled" "$receipts_amount" 2>/dev/null); then
@@ -203,6 +227,6 @@ echo
 echo "📝 Next steps:"
 echo "  1. Fix any script errors shown above"
 echo "  2. Ensure your run.sh outputs only a number"
-echo "  3. Analyze the patterns in the interviews and public cases"
+    echo "  3. Analyze the patterns in the interviews and private cases"
 echo "  4. Test edge cases around trip length and receipt amounts"
-echo "  5. Submit your solution via the Google Form when ready!" 
+    echo "  5. Submit your solution via the Google Form when ready!"

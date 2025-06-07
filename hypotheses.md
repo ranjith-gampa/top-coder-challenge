@@ -5,7 +5,7 @@ Based on the analysis of `public_cases.json` and `INTERVIEWS.md`, the following 
 ## 1. Per Diem Rates
 
 *   **H1.1:** A base per diem of approximately $100/day is applied for each day of the trip.
-*   **H1.2:** Trips of exactly 5 days receive a significant bonus, with reimbursements typically 40-50% higher than expected from base calculations.
+*   **H1.2:** Trips of exactly 5 days receive a per diem bonus, changing the multiplier from 1.25x to 1.15x on their base per diem rate.
 *   **H1.3:** (From interviews, not directly testable with `public_cases.json` alone) Employee tenure or history might influence per diem calculations (e.g., new employees getting lower rates).
 *   **H1.4:** Optimal daily spending caps exist and vary by trip duration:
     - 1-3 day trips: ~$75/day
@@ -28,14 +28,23 @@ Based on the analysis of `public_cases.json` and `INTERVIEWS.md`, the following 
 
 ## 3. Receipt Impacts
 
-*   **H3.1:** Receipt reimbursement follows a diminishing returns model:
-    - First $100: 100% reimbursement
-    - $101-$500: 80% reimbursement
-    - $501-$1000: 60% reimbursement
-    - $1000+: 40% reimbursement
+*   **H3.1:** Receipt reimbursement follows a diminishing returns model.
+    - **For 1-day trips:**
+        - First $100: 100% reimbursement.
+        - $101-$200: 90% reimbursement.
+        - $201-$500: 80% reimbursement.
+        - Above $500: 70% reimbursement for the amount over $500 (e.g., `430 + ((total_receipts_amount - 500) * 0.70)`).
+    - **For multi-day trips:**
+        - First $100: 100% reimbursement.
+        - $101-$200: 90% reimbursement.
+        - $201-$500: 80% reimbursement.
+        - $501-$1000: 70% reimbursement.
+        - Above $1000: See H3.1.1.
+    *   **H3.1.1:** For multi-day trips (duration > 1 day), the reimbursement rate for `total_receipts_amount` exceeding $1000 is 0.10. (Note: 2-day trips have an additional specific cap on `receipt_reimbursement` before this, as per H3.5).
 *   **H3.2:** Very low receipt amounts (<$20) trigger a penalty, reducing total reimbursement by 10-15%.
 *   **H3.3:** Receipt totals ending in .49 or .99 receive a small rounding bonus (approximately 2-3%).
 *   **H3.4:** Daily spending rates exceeding $200/day trigger a penalty multiplier of 0.8x on receipt reimbursement.
+*   **H3.5:** For 2-day trips, there's a stricter cap on the `receipt_reimbursement` component (e.g., around $850) *before* other penalties like the daily spending penalty are applied. This is to prevent excessive reimbursement for very high receipts on short trips.
 
 ## 4. Efficiency Bonuses/Penalties
 
@@ -47,6 +56,11 @@ Based on the analysis of `public_cases.json` and `INTERVIEWS.md`, the following 
     - <100 miles/day: -15% penalty
     - >300 miles/day: -10% penalty
 *   **H4.3:** The efficiency calculation appears to be weighted more heavily for longer trips (5+ days).
+*   **H4.4:** The positive efficiency bonus (e.g., 1.20x or 1.10x) is nullified (set to 1.0) if any of the following conditions are met:
+        a. Average daily receipts (`total_receipts_amount / trip_duration_days`) exceed $400.
+        b. The trip duration is 7 days or longer AND the `total_receipts_amount` exceeds $900.
+        c. The trip duration is 5 days AND the `total_receipts_amount` exceeds $800.
+*   **H4.5:** Special handling for extreme single-day trips: if `trip_duration_days == 1` and `miles_traveled > 1000`, the `efficiency_multiplier` is set to 0.85.
 
 ## 5. Special Conditions & Other Factors
 
