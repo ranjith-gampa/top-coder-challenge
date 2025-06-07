@@ -4,91 +4,132 @@ import sys
 import math
 
 def calculate_reimbursement(trip_duration_days, miles_traveled, total_receipts_amount):
-    # Starting from Set 17 code.
-    # Micro-Adjustment 1: Add a global fixed bonus of $1.65.
+    # Base components
+    per_diem_total = 0.0
+    mileage_reimbursement = 0.0
+    receipt_reimbursement = 0.0
 
-    per_diem_total_base = 0.0
-    final_mileage_reimbursement = 0.0
-    final_receipt_reimbursement = 0.0
-
-    # --- Standard Per Diem Calculation ---
-    per_diem_rate_actual = 0.0
-    if 1 <= trip_duration_days <= 6:
-        per_diem_rate_actual = 100.0
-    elif 7 <= trip_duration_days <= 10:
-        per_diem_rate_actual = 80.0
-    else: # trip_duration_days > 10
-        per_diem_rate_actual = 60.0
-
-    per_diem_total_base = trip_duration_days * per_diem_rate_actual
-
-    per_diem_to_use_in_final_calc = per_diem_total_base
-    if trip_duration_days == 5:
-        per_diem_to_use_in_final_calc += 50.0
-
-    # --- Standard Mileage base calculation ---
-    if miles_traveled > 0:
-        tier1_rate = 0.58
-        tier1_miles_cap = 100.0
-        tier2_rate = 0.45
-        if miles_traveled <= tier1_miles_cap:
-            final_mileage_reimbursement = miles_traveled * tier1_rate
-        else:
-            final_mileage_reimbursement = (tier1_miles_cap * tier1_rate) + \
-                                    ((miles_traveled - tier1_miles_cap) * tier2_rate)
-
-    # --- Standard Receipt Pre-Calculation & DSL ---
-    actual_daily_spending = 0
-    if trip_duration_days > 0:
-        actual_daily_spending = total_receipts_amount / trip_duration_days
-
-    dsl = 0.0
+    # Calculate per diem based on trip length
     if trip_duration_days == 1:
-        if total_receipts_amount > 800:
-            dsl = total_receipts_amount
-        else:
-            dsl = 200.0
-    elif 1 < trip_duration_days <= 3:
-        dsl = 200.0
-    elif trip_duration_days <= 6:
-        dsl = 120.0
-    else: # trip_duration_days > 6
-        dsl = 90.0
-
-    effective_receipts_for_calc = total_receipts_amount
-    if dsl != total_receipts_amount and actual_daily_spending > dsl:
-        effective_receipts_for_calc = dsl * trip_duration_days
-
-    low_receipt_min_daily_avg = 20.0
-    if effective_receipts_for_calc < (trip_duration_days * low_receipt_min_daily_avg):
-        final_receipt_reimbursement = 0.0
+        per_diem_total = 100.0
+    elif trip_duration_days <= 3:
+        per_diem_total = trip_duration_days * 100.0
+    elif trip_duration_days <= 5:
+        per_diem_total = trip_duration_days * 95.0
+    elif trip_duration_days <= 7:
+        per_diem_total = trip_duration_days * 90.0
+    elif trip_duration_days <= 10:
+        per_diem_total = trip_duration_days * 85.0
     else:
-        receipt_cap1 = 400.0; receipt_rate1 = 0.80
-        receipt_cap2 = 800.0; receipt_rate2 = 0.50
-        receipt_rate3 = 0.30
+        per_diem_total = trip_duration_days * 80.0
 
-        if effective_receipts_for_calc <= receipt_cap1:
-            final_receipt_reimbursement = effective_receipts_for_calc * receipt_rate1
-        elif effective_receipts_for_calc <= receipt_cap2:
-            final_receipt_reimbursement = (receipt_cap1 * receipt_rate1) + \
-                                    ((effective_receipts_for_calc - receipt_cap1) * receipt_rate2)
+    # 5-day trip bonus (H1.2)
+    if trip_duration_days == 5:
+        per_diem_total *= 1.25  # 25% bonus for 5-day trips
+
+    # Minimum per diem guarantee for short trips (H1.5)
+    if trip_duration_days <= 2 and miles_traveled < 50:
+        per_diem_total = max(per_diem_total, 100.0)
+
+    # Calculate mileage reimbursement with adjusted rates
+    if miles_traveled <= 100:
+        mileage_reimbursement = miles_traveled * 0.58
+    elif miles_traveled <= 300:
+        mileage_reimbursement = (100 * 0.58) + ((miles_traveled - 100) * 0.45)
+    elif miles_traveled <= 500:
+        mileage_reimbursement = (100 * 0.58) + (200 * 0.45) + ((miles_traveled - 300) * 0.35)
+    elif miles_traveled <= 800:
+        mileage_reimbursement = (100 * 0.58) + (200 * 0.45) + (200 * 0.35) + ((miles_traveled - 500) * 0.27)
+    else:
+        mileage_reimbursement = (100 * 0.58) + (200 * 0.45) + (200 * 0.35) + (300 * 0.27) + ((miles_traveled - 800) * 0.21)
+
+    # --- Receipt Calculation (H3.1, H3.2, H3.3, H3.4) ---
+    if total_receipts_amount > 0:
+        # Calculate receipt reimbursement with adjusted caps
+        if trip_duration_days == 1:
+            if total_receipts_amount <= 100:
+                receipt_reimbursement = total_receipts_amount
+            elif total_receipts_amount <= 200:
+                receipt_reimbursement = 100 + ((total_receipts_amount - 100) * 0.90)
+            elif total_receipts_amount <= 500:
+                receipt_reimbursement = 190 + ((total_receipts_amount - 200) * 0.80)
+            else:
+                receipt_reimbursement = 430 + ((total_receipts_amount - 500) * 0.70)
         else:
-            final_receipt_reimbursement = (receipt_cap1 * receipt_rate1) + \
-                                    ((receipt_cap2 - receipt_cap1) * receipt_rate2) + \
-                                    ((effective_receipts_for_calc - receipt_cap2) * receipt_rate3)
+            if total_receipts_amount <= 100:
+                receipt_reimbursement = total_receipts_amount
+            elif total_receipts_amount <= 200:
+                receipt_reimbursement = 100 + ((total_receipts_amount - 100) * 0.90)
+            elif total_receipts_amount <= 500:
+                receipt_reimbursement = 190 + ((total_receipts_amount - 200) * 0.80)
+            elif total_receipts_amount <= 1000:
+                receipt_reimbursement = 430 + ((total_receipts_amount - 500) * 0.70)
+            else:
+                receipt_reimbursement = 780 + ((total_receipts_amount - 1000) * 0.60)
 
-    reimbursement = per_diem_to_use_in_final_calc + final_mileage_reimbursement + final_receipt_reimbursement
+        receipt_reimbursement = min(receipt_reimbursement, total_receipts_amount)
 
-    # --- Efficiency Adjustments (from Set 17) ---
-    if trip_duration_days > 0:
-        miles_per_day = miles_traveled / trip_duration_days
-        if 160 <= miles_per_day <= 240: # Bonus zone
-            reimbursement *= 1.05
+        # Low receipt penalty (H3.2)
+        if total_receipts_amount < 20:
+            receipt_reimbursement *= 0.85
 
-    # --- Micro-Adjustment 1: Global Fixed Bonus ---
-    reimbursement += 1.65
+        # Daily spending penalty (H3.4)
+        daily_spending = total_receipts_amount / trip_duration_days
+        if daily_spending > 200:
+            receipt_reimbursement *= 0.8
 
-    return round(reimbursement, 2)
+        # Rounding bonus for .49 or .99 (H3.3)
+        if str(total_receipts_amount).endswith('.49') or str(total_receipts_amount).endswith('.99'):
+            receipt_reimbursement *= 1.02
+
+    # --- Efficiency Calculations (H4.1, H4.2, H4.3) ---
+    miles_per_day = miles_traveled / trip_duration_days if trip_duration_days > 0 else 0
+    efficiency_multiplier = 1.0
+
+    # Special handling for extreme single-day trips
+    if trip_duration_days == 1 and miles_traveled > 1000:
+        efficiency_multiplier = 0.7
+    else:
+        if 180 <= miles_per_day <= 220:
+            efficiency_multiplier = 1.20
+        elif 150 <= miles_per_day < 180:
+            efficiency_multiplier = 1.10
+        elif 220 < miles_per_day <= 250:
+            efficiency_multiplier = 1.05
+        elif miles_per_day < 100:
+            efficiency_multiplier = 0.85
+        elif miles_per_day > 300:
+            efficiency_multiplier = 0.90
+
+    # Weight efficiency more heavily for longer trips (H4.3)
+    if trip_duration_days >= 5:
+        efficiency_multiplier = 1.0 + ((efficiency_multiplier - 1.0) * 1.2)
+
+    # --- Special Conditions (H5.1-H5.7, H6.1-H6.5) ---
+    # Calculate base reimbursement
+    base_reimbursement = per_diem_total + mileage_reimbursement + receipt_reimbursement
+    
+    # Apply efficiency multiplier
+    base_reimbursement *= efficiency_multiplier
+
+    # Vacation penalty (H5.4)
+    if trip_duration_days >= 8 and (total_receipts_amount / trip_duration_days) > 150:
+        base_reimbursement *= 0.9
+
+    # Maximum reimbursement cap (H6.1)
+    base_reimbursement = min(base_reimbursement, 2000.0)
+
+    # Minimum reimbursement guarantee (H5.6)
+    base_reimbursement = max(base_reimbursement, 100.0)
+
+    # Complexity bonus (H6.5)
+    if miles_per_day > 200 and 50 <= (total_receipts_amount / trip_duration_days) <= 150:
+        base_reimbursement *= 1.05
+
+    # Round to nearest cent with slight upward bias (H6.4)
+    final_reimbursement = math.ceil(base_reimbursement * 100) / 100
+
+    return final_reimbursement
 
 if __name__ == "__main__":
     if len(sys.argv) != 4:
